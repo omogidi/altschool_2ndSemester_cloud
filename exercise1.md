@@ -100,7 +100,7 @@ vim vagrantfile
 The vim editor will open with the content of the file. To start editing the file.
 ***``type i``***
 You can now edit.
-Look for the **config.vm.network "private_network", ip: "192.168.33.10"** and edit the ip to
+Look for the **config.vm.network "private_network", ip: "192.168.33.10"** and uncomment and edit the ip to
 
 ``` 
 config.vm.network "private_network", ip: "dhcp"
