@@ -45,4 +45,36 @@ usermod -G engineering user3
 <img src="exercise3 images\usermod.PNG" alt="com command" style="height: 200px; width:400px;"/>
 
 Use cat to view the groups and user
+
+```
 cat /etc/group
+```
+
+
+# Generate SSH keys for the user in the admin group
+
+Switch user to user1
+
+```
+su user1
+```
+
+Change directory to .ssh
+
+```
+cd .ssh
+```
+
+```Note: You might get an error 'cant cd into ssh' Change mod if you run into this error```
+
+```
+chmod 777 .ssh
+```
+
+Run the command ssh-keygen. This will generate the key.
+
+```
+ssh-keygen
+```
+
+<img src="exercise3 images\sshkeygen.PNG" alt="com command" style="height: 300px; width:500px;"/>
