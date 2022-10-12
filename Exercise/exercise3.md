@@ -51,6 +51,7 @@ cat /etc/group
 ```
 
 
+
 # Generate SSH keys for the user in the admin group
 
 Switch user to user1
