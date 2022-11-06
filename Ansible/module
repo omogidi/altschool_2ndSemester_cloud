@@ -1,0 +1,22 @@
+# setup linux server
+apt update
+apt upgrade
+apt install -y software-common-properties python3-pip python3-dev build-essential libssl-dev libffi-dev python3-setuptools python3-venv
+apt install ansible -y
+
+# Create a folder for ansible.
+mkdir ansible
+cd ansible
+
+# create host-inventory
+touch host-inventory
+
+# Add the following to the host-inventory file
+nano host-inventory
+Ip address of the servers you want to connect to. (Managed nodes)
+
+# To reach the managed nodes, Ansible uses SSH. So, you need to have SSH installed on the managed nodes.
+ansible all -m ping -i host-inventory
+
+# To check
+ansible-playbook -i host-inventory test.yml --check

@@ -1,0 +1,158 @@
+---
+- name: Ansible Playbook to Install and Setup Apache on Ubuntu
+  hosts: slave
+  become: yes
+  vars:
+    DB_CONNECTION: pgsql
+    DB_DATABASE: laraveldb
+    DB_USERNAME: laravel
+    DB_PASSWORD: 4OFxc3t2bLS24OOkfpn
+    DB_HOST: localhost
+    DB_PORT: 5432
+  tasks:
+    - name: Install required packaged
+      apt:
+        name: ['acl']
+        state: latest
+      with_items:
+        - acl
+
+    - name: Get list of installed binaries
+      command: ls /usr/local/bin
+      register: local_binaries
+
+    - name: Install latest version of Apache
+      apt: name=apache2 update_cache=yes state=latest
+
+    - name: Install php and necessary modules
+      apt: name={{ item }} state=latest
+      with_items:
+        - php
+        - libapache2-mod-php
+        - php-mbstring
+        - php-xmlrpc
+        - php-soap
+        - php-gd
+        - php-xml
+        - php-cli
+        - php-zip
+        - php-bcmath
+        - php-tokenizer
+        - php-json
+        - php-pear
+        - php-curl
+        - php-intl
+        - php-pgsql
+
+    - name: Install Composer
+      shell: |
+        php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+        php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae') { echo 'Installer verified'; }>
+        php composer-setup.php
+        php -r "unlink('composer-setup.php');"
+        sudo mv composer.phar /usr/local/bin/composer
+      args:
+         chdir: /tmp
+
+    - name: install postgres and necessary modules
+      apt: name={{ item }} state=latest
+      with_items:
+        - postgresql
+        - postgresql-contrib
+        - postgresql-client
+
+    - name: "start and Enable services"
+      service: "name={{ item }} state=started enabled=yes"
+      with_items:
+        - postgresql
+
+    - name: Copy Database setup Script
+      copy:
+        src: files/db-setup.sh
+        dest: /tmp/db-setup.sh
+        mode: 0755
+
+    - name: Run database setup script
+      become: yes
+      become_user: postgres
+      shell: ./db-setup.sh
+      args:
+        chdir: /tmp
+      environment:
+        DB_DATABASE: "{{ DB_DATABASE }}"
+        DB_USERNAME: "{{ DB_USERNAME }}"
+        DB_PASSWORD: "{{ DB_PASSWORD }}"
+      register: db_setup
+
+    - name: Output Database setup script
+      debug:
+        var: db_setup.stdout_lines
+
+    - name: Enable Apache mod_rewrite
+      apache2_module: name=rewrite state=present
+
+    - name: Add a setting to ~/.gitconfig
+      community.general.git_config:
+        name: safe.directory
+        scope: global
+        value: /var/www/html/laravel-realworld-example-app
+
+    - name: Clone the project from gitgub
+      git:
+        repo: https://github.com/omogidi/laravel-realworld-example-app.git
+        dest: /var/www/html/laravel-realworld-example-app
+        force: yes
+        clone: yes
+        update: yes
+
+    - name: Setup .env file
+      template:
+        src: files/.env.j2
+        dest: /var/www/html/laravel-realworld-example-app
+        mode: 0644
+
+    - name: Install Laravel Dependencies
+      composer:
+        command: install
+        working_dir: /var/www/html/laravel-realworld-example-app
+      environment:
+        COMPOSER_NO_INTERACTION: "1"
+        COMPOSER_ALLOW_SUPERUSER: "1"
+
+    - name: change owner of the project to www-data
+      file:
+        path: /var/www/html/laravel-realworld-example-app
+        owner: www-data
+        group: www-data
+        recurse: yes
+
+    - name: change storage directory permissions
+      file:
+        path: /var/www/html/laravel-realworld-example-app/storage
+        mode: 0777
+        recurse: yes
+
+    - name: change bootstrap/cache directory permissions
+      file:
+        path: /var/www/html/laravel-realworld-example-app/bootstrap/cache
+        mode: 0777
+        recurse: yes
+
+    - name: Disable default apache site
+      command: a2dissite 000-default.conf
+      notify: restart-apache
+
+    - name: Copy the Apache configuration file
+      copy:
+        src: files/laravel-realworld-example-app.conf
+        dest: /etc/apache2/sites-available/laravel-realworld-example-app.conf
+
+    - name: Enable the new Apache site
+      command: a2ensite laravel-realworld-example-app.conf
+      notify: restart-apache
+      
+   handlers:
+    - name: restart-apache
+      service:
+        name: apache2
+        state: restarted
